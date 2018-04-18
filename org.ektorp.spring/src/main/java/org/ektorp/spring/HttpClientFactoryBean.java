@@ -1,8 +1,16 @@
 package org.ektorp.spring;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.security.KeyStore;
 import java.util.Properties;
 
+import org.apache.commons.lang.StringUtils;
+import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.conn.ssl.SSLSocketFactory;
+import org.apache.http.conn.ssl.TrustSelfSignedStrategy;
+import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.ssl.SSLContextBuilder;
 import org.ektorp.http.HttpClient;
 import org.ektorp.http.RestTemplate;
 import org.ektorp.http.StdHttpClient;
@@ -15,6 +23,10 @@ import org.springframework.beans.factory.BeanCreationException;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.FactoryBean;
 import org.springframework.beans.factory.InitializingBean;
+
+import javax.net.ssl.HostnameVerifier;
+import javax.net.ssl.SSLSession;
+
 /**
  * FactoryBean that produces a HttpClient.
  * Configuration parameters are set through @Value annotations.
@@ -194,24 +206,7 @@ public class HttpClientFactoryBean implements FactoryBean<HttpClient>, Initializ
 		LOG.debug("useExpectContinue: {}", useExpectContinue);
 
 		
-		client = new StdHttpClient.Builder()
-								.host(host)
-								.port(port)
-								.maxConnections(maxConnections)
-								.connectionTimeout(connectionTimeout)
-								.socketTimeout(socketTimeout)
-								.username(username)
-								.password(password)
-								.cleanupIdleConnections(cleanupIdleConnections)
-								.useExpectContinue(useExpectContinue)
-								.enableSSL(enableSSL)
-								.relaxedSSLSettings(relaxedSSLSettings)
-								.sslSocketFactory(sslSocketFactory)
-								.caching(caching)
-								.maxCacheEntries(maxCacheEntries)
-								.maxObjectSizeBytes(maxObjectSizeBytes)
-								.url(url)
-								.build();
+		client = new StdHttpClient(setupHttpClient());
 		
 		if (testConnectionAtStartup) {
 			testConnect(client);
@@ -219,5 +214,41 @@ public class HttpClientFactoryBean implements FactoryBean<HttpClient>, Initializ
 		
 		configureAutoUpdateViewOnChange();
 	}
-	
+
+	public static org.apache.http.client.HttpClient setupHttpClient() {
+		HttpClientBuilder clientBuilder = HttpClientBuilder.create();
+		try {
+			SSLContextBuilder sslBuilder = SSLContextBuilder.create();
+			String trustStoreFile = System.getProperty("mobdata.trustStore");
+			String trustStorePassword = System.getProperty("mobdata.trustStorePassword");
+			if (StringUtils.isNotBlank(trustStoreFile) && StringUtils.isNotBlank(
+					trustStorePassword)) {
+				sslBuilder.loadTrustMaterial(new File(trustStoreFile),
+						trustStorePassword.toCharArray(), new TrustSelfSignedStrategy());
+			}
+
+			String keyStoreFile = System.getProperty("mobdata.keyStore");
+			String keyStorePassword = System.getProperty("mobdata.keyStorePassword");
+			if (StringUtils.isNotBlank(keyStoreFile) && StringUtils.isNotBlank(keyStorePassword)) {
+				KeyStore keyStore = KeyStore.getInstance("JKS");
+				FileInputStream fis = new FileInputStream(keyStoreFile);
+				keyStore.load(fis, keyStorePassword.toCharArray());
+				sslBuilder.loadKeyMaterial(keyStore, keyStorePassword.toCharArray());
+			}
+
+			SSLConnectionSocketFactory sslFactory =
+					new SSLConnectionSocketFactory(sslBuilder.build(), new String[]{"TLSv1.2"},
+							null, new HostnameVerifier() {
+						@Override
+						public boolean verify(final String hostname, final SSLSession session) {
+							return true;
+						}
+					});
+			clientBuilder.setSSLSocketFactory(sslFactory);
+		} catch (Exception e) {
+			throw new IllegalArgumentException("Error configuring server certificates.", e);
+		}
+		return clientBuilder.build();
+	}
+
 }

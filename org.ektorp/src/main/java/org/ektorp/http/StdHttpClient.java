@@ -23,6 +23,7 @@ import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.client.params.ClientPNames;
 import org.apache.http.conn.ClientConnectionManager;
+import org.apache.http.conn.HttpClientConnectionManager;
 import org.apache.http.conn.params.ConnRoutePNames;
 import org.apache.http.conn.scheme.PlainSocketFactory;
 import org.apache.http.conn.scheme.Scheme;
@@ -32,9 +33,11 @@ import org.apache.http.entity.InputStreamEntity;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.DecompressingHttpClient;
 import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.cache.CacheConfig;
 import org.apache.http.impl.client.cache.CachingHttpClient;
 import org.apache.http.impl.conn.PoolingClientConnectionManager;
+import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.apache.http.params.BasicHttpParams;
 import org.apache.http.params.HttpConnectionParams;
 import org.apache.http.params.HttpParams;
@@ -52,16 +55,18 @@ public class StdHttpClient implements HttpClient {
 
 	private final org.apache.http.client.HttpClient client;
 	private final org.apache.http.client.HttpClient backend;
+	private final HttpHost httpHost;
 	private final static Logger LOG = LoggerFactory
 			.getLogger(StdHttpClient.class);
 
-	public StdHttpClient(org.apache.http.client.HttpClient hc) {
-		this(hc, hc);
+	public StdHttpClient(org.apache.http.client.HttpClient hc, HttpHost httpHost) {
+		this(hc, hc, httpHost);
 	}
 	public StdHttpClient(org.apache.http.client.HttpClient hc, 
-			org.apache.http.client.HttpClient backend) {
+			org.apache.http.client.HttpClient backend, HttpHost httpHost) {
 		this.client = hc;
 		this.backend = backend;
+		this.httpHost = httpHost;
 	}
 
 	public org.apache.http.client.HttpClient getClient() {
@@ -198,11 +203,11 @@ public class StdHttpClient implements HttpClient {
 	}
 	
 	public void shutdown() {
-		client.getConnectionManager().shutdown();
+		conman.shutdown();
 	}
 
 	protected HttpHost getHttpHost() {
-		return (HttpHost)client.getParams().getParameter(ClientPNames.DEFAULT_HOST);
+		return this.httpHost;
 	}
 
 	public static class Builder {
@@ -211,7 +216,7 @@ public class StdHttpClient implements HttpClient {
 		protected int maxConnections = 20;
 		protected int connectionTimeout = 1000;
 		protected int socketTimeout = 10000;
-		protected ClientConnectionManager conman;
+		protected HttpClientConnectionManager conman;
 		protected int proxyPort = -1;
 		protected String proxy = null;
 
@@ -311,21 +316,11 @@ public class StdHttpClient implements HttpClient {
 			return this;
 		}
 
-		public ClientConnectionManager configureConnectionManager(
-				HttpParams params) {
+		public HttpClientConnectionManager configureConnectionManager() {
 			if (conman == null) {
-				SchemeRegistry schemeRegistry = new SchemeRegistry();
-				schemeRegistry.register(configureScheme());
-
-				PoolingClientConnectionManager cm = new PoolingClientConnectionManager(schemeRegistry);
-				cm.setMaxTotal(maxConnections);
-				cm.setDefaultMaxPerRoute(maxConnections);
-				conman = cm;
+				conman = new PoolingHttpClientConnectionManager();
 			}
 
-			if (cleanupIdleConnections) {
-				IdleConnectionMonitor.monitor(conman);
-			}
 			return conman;
 		}
 
@@ -370,21 +365,9 @@ public class StdHttpClient implements HttpClient {
 		}
 
 		public org.apache.http.client.HttpClient configureClient() {
-			HttpParams params = configureHttpParams();
-			ClientConnectionManager connectionManager = configureConnectionManager(params);
-			DefaultHttpClient client = new DefaultHttpClient(connectionManager, params);
-			if (username != null && password != null) {
-				client.getCredentialsProvider().setCredentials(
-						new AuthScope(host, port, AuthScope.ANY_REALM),
-						new UsernamePasswordCredentials(username, password));
-				client.addRequestInterceptor(
-						new PreemptiveAuthRequestInterceptor(), 0);
-			}
-			
-			if (compression) {
-				return new DecompressingHttpClient(client);
-			}
-			return client;
+			HttpClientConnectionManager connectionManager = configureConnectionManager();
+			return HttpClientBuilder.create().
+					setConnectionManager(connectionManager).build();
 		}
 
 		/**
@@ -460,7 +443,7 @@ public class StdHttpClient implements HttpClient {
 		 * @param cm
 		 * @return
 		 */
-		public Builder connectionManager(ClientConnectionManager cm) {
+		public Builder connectionManager(HttpClientConnectionManager cm) {
 			conman = cm;
 			return this;
 		}
@@ -469,7 +452,6 @@ public class StdHttpClient implements HttpClient {
 		 * Set to true in order to enable SSL sockets. Note that the CouchDB
 		 * host must be accessible through a https:// path Default is false.
 		 * 
-		 * @param s
 		 * @return
 		 */
 		public Builder enableSSL(boolean b) {
@@ -517,23 +499,10 @@ public class StdHttpClient implements HttpClient {
 
 		public HttpClient build() {
 			org.apache.http.client.HttpClient client = configureClient();
-			org.apache.http.client.HttpClient cachingHttpClient = client;
+			HttpHost httpHost = new HttpHost(this.host, this.port, "https");
 
-			if (caching) {
-				cachingHttpClient = WithCachingBuilder.withCaching(client, maxCacheEntries, maxObjectSizeBytes);
-			}
-			return new StdHttpClient(cachingHttpClient, client);
+			return new StdHttpClient(client, httpHost);
 		}
 
-	}
-
-        // separate class to avoid runtime dependency to httpclient-cache unless using caching
-	public static class WithCachingBuilder {
-		public static org.apache.http.client.HttpClient withCaching(org.apache.http.client.HttpClient client, int maxCacheEntries, int maxObjectSizeBytes) {
-			CacheConfig cacheConfig = new CacheConfig();  
-			cacheConfig.setMaxCacheEntries(maxCacheEntries);
-			cacheConfig.setMaxObjectSize(maxObjectSizeBytes);
-			return new CachingHttpClient(client, cacheConfig);
-		}
 	}
 }
