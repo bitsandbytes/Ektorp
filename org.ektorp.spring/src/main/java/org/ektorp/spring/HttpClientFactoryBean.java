@@ -6,9 +6,14 @@ import java.security.KeyStore;
 import java.util.Properties;
 
 import org.apache.commons.lang.StringUtils;
+import org.apache.http.HttpHost;
+import org.apache.http.auth.AuthScope;
+import org.apache.http.auth.UsernamePasswordCredentials;
+import org.apache.http.client.CredentialsProvider;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.conn.ssl.SSLSocketFactory;
 import org.apache.http.conn.ssl.TrustSelfSignedStrategy;
+import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.ssl.SSLContextBuilder;
 import org.ektorp.http.HttpClient;
@@ -43,6 +48,7 @@ public class HttpClientFactoryBean implements FactoryBean<HttpClient>, Initializ
 	private final static Logger LOG = LoggerFactory.getLogger(HttpClientFactoryBean.class);
 	
 	protected HttpClient client;
+	protected HttpHost httpHost;
 	
 	public String url;
 	public String host = "localhost";
@@ -205,8 +211,8 @@ public class HttpClientFactoryBean implements FactoryBean<HttpClient>, Initializ
 		LOG.debug("relaxedSSLSettings: {}", relaxedSSLSettings);
 		LOG.debug("useExpectContinue: {}", useExpectContinue);
 
-		
-		client = new StdHttpClient(setupHttpClient());
+		httpHost = new HttpHost("md-020.trinityalps.org", 6984, "https");
+		client = new StdHttpClient(setupHttpClient(httpHost), httpHost);
 		
 		if (testConnectionAtStartup) {
 			testConnect(client);
@@ -215,8 +221,13 @@ public class HttpClientFactoryBean implements FactoryBean<HttpClient>, Initializ
 		configureAutoUpdateViewOnChange();
 	}
 
-	public static org.apache.http.client.HttpClient setupHttpClient() {
+	public static org.apache.http.client.HttpClient setupHttpClient(HttpHost httpHost) {
 		HttpClientBuilder clientBuilder = HttpClientBuilder.create();
+		CredentialsProvider credsProvider = new BasicCredentialsProvider();
+		credsProvider.setCredentials(
+				new AuthScope(httpHost.getHostName(), httpHost.getPort()),
+				new UsernamePasswordCredentials("admin", "RunT0Th3Hills!"));
+		clientBuilder.setDefaultCredentialsProvider(credsProvider);
 		try {
 			SSLContextBuilder sslBuilder = SSLContextBuilder.create();
 			String trustStoreFile = System.getProperty("mobdata.trustStore");

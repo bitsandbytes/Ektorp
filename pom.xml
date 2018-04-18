@@ -46,7 +46,7 @@
     <modules>
         <module>org.ektorp</module>
         <module>org.ektorp.spring</module>
-        <module>org.ektorp.android</module>
+        <!--<module>org.ektorp.android</module>-->
     </modules>
 
     <properties>

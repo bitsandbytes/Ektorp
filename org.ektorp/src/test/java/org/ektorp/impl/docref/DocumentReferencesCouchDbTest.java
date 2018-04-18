@@ -18,8 +18,9 @@ import org.junit.*;
 @Ignore
 public class DocumentReferencesCouchDbTest {
 
-	HttpClient httpClient = new StdHttpClient.Builder().host("localhost")
-			.port(5984).build();
+//	HttpClient httpClient = new StdHttpClient.Builder().host("localhost")
+//			.port(5984).build();
+	HttpClient httpClient = null;
 
 	CouchDbInstance dbInstance = new StdCouchDbInstance(httpClient);
 

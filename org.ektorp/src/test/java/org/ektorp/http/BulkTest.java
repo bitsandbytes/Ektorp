@@ -69,63 +69,63 @@ public class BulkTest {
 
     private boolean deleteDatabaseIfNeeded = false;
 
-    @Before
-    public void setUp() {
-        StdHttpClient.Builder builder = new StdHttpClient.Builder();
-
-        // read the configuration from the System properties (if you want to target another host like Cloudant)
-
-        final String serverHost = System.getProperty("serverHost");
-        final String serverPort = System.getProperty("serverPort");
-        final String serverUsername = System.getProperty("serverUsername");
-        final String serverPassword = System.getProperty("serverPassword");
-        final String proxyHost = System.getProperty("proxyHost");
-        final String proxyPort = System.getProperty("proxyPort");
-
-        builder = builder.cleanupIdleConnections(true).caching(false).enableSSL(false);
-        if (serverHost != null) {
-            builder = builder.host(serverHost);
-            builder = builder.socketTimeout(10000).connectionTimeout(5000);
-        }
-        if (serverPort != null) {
-            builder = builder.port(Integer.parseInt(serverPort));
-        }
-        if (serverUsername != null) {
-            builder = builder.username(serverUsername);
-        }
-        if (serverPassword != null) {
-            builder = builder.password(serverPassword);
-        }
-        if (proxyHost != null && proxyPort != null) {
-            builder = builder.proxy(proxyHost).proxyPort(Integer.parseInt(proxyPort));
-        }
-
-
-        httpClient = builder.build();
-        dbInstance = new StdCouchDbInstance(httpClient);
-
-        String databasePath = this.getClass().getSimpleName() + "-DataBase";
-
-        if (deleteDatabaseIfNeeded) {
-            if (dbInstance.checkIfDbExists(databasePath)) {
-                dbInstance.deleteDatabase(databasePath);
-            }
-        }
-        if (createDatabaseIfNeeded) {
-            if (!dbInstance.checkIfDbExists(databasePath)) {
-                dbInstance.createDatabase(databasePath);
-            }
-        } else {
-            if (!dbInstance.checkIfDbExists(databasePath)) {
-                throw new IllegalStateException("Database does not exists");
-            }
-        }
-
-        stdCouchDbConnector = new StdCouchDbConnector(databasePath, dbInstance, new StdObjectMapperFactory());
-        streamedCouchDbConnector = new StreamedCouchDbConnector(databasePath, dbInstance, new StdObjectMapperFactory());
-
-        mapper = new ObjectMapper();
-    }
+//    @Before
+//    public void setUp() {
+//        StdHttpClient.Builder builder = new StdHttpClient.Builder();
+//
+//        // read the configuration from the System properties (if you want to target another host like Cloudant)
+//
+//        final String serverHost = System.getProperty("serverHost");
+//        final String serverPort = System.getProperty("serverPort");
+//        final String serverUsername = System.getProperty("serverUsername");
+//        final String serverPassword = System.getProperty("serverPassword");
+//        final String proxyHost = System.getProperty("proxyHost");
+//        final String proxyPort = System.getProperty("proxyPort");
+//
+//        builder = builder.cleanupIdleConnections(true).caching(false).enableSSL(false);
+//        if (serverHost != null) {
+//            builder = builder.host(serverHost);
+//            builder = builder.socketTimeout(10000).connectionTimeout(5000);
+//        }
+//        if (serverPort != null) {
+//            builder = builder.port(Integer.parseInt(serverPort));
+//        }
+//        if (serverUsername != null) {
+//            builder = builder.username(serverUsername);
+//        }
+//        if (serverPassword != null) {
+//            builder = builder.password(serverPassword);
+//        }
+//        if (proxyHost != null && proxyPort != null) {
+//            builder = builder.proxy(proxyHost).proxyPort(Integer.parseInt(proxyPort));
+//        }
+//
+//
+//        httpClient = builder.build();
+//        dbInstance = new StdCouchDbInstance(httpClient);
+//
+//        String databasePath = this.getClass().getSimpleName() + "-DataBase";
+//
+//        if (deleteDatabaseIfNeeded) {
+//            if (dbInstance.checkIfDbExists(databasePath)) {
+//                dbInstance.deleteDatabase(databasePath);
+//            }
+//        }
+//        if (createDatabaseIfNeeded) {
+//            if (!dbInstance.checkIfDbExists(databasePath)) {
+//                dbInstance.createDatabase(databasePath);
+//            }
+//        } else {
+//            if (!dbInstance.checkIfDbExists(databasePath)) {
+//                throw new IllegalStateException("Database does not exists");
+//            }
+//        }
+//
+//        stdCouchDbConnector = new StdCouchDbConnector(databasePath, dbInstance, new StdObjectMapperFactory());
+//        streamedCouchDbConnector = new StreamedCouchDbConnector(databasePath, dbInstance, new StdObjectMapperFactory());
+//
+//        mapper = new ObjectMapper();
+//    }
 
     @After
     public void tearDown() {
