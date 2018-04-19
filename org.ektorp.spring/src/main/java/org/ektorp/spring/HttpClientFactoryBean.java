@@ -211,7 +211,7 @@ public class HttpClientFactoryBean implements FactoryBean<HttpClient>, Initializ
 		LOG.debug("relaxedSSLSettings: {}", relaxedSSLSettings);
 		LOG.debug("useExpectContinue: {}", useExpectContinue);
 
-		httpHost = new HttpHost("md-020.trinityalps.org", 6984, "https");
+		httpHost = new HttpHost(host, port, enableSSL ? "https" : "http");
 		client = new StdHttpClient(setupHttpClient(httpHost), httpHost);
 		
 		if (testConnectionAtStartup) {

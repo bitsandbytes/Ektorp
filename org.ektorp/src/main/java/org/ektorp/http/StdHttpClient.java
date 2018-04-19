@@ -164,8 +164,10 @@ public class StdHttpClient implements HttpClient {
 
 			org.apache.http.HttpResponse rsp;
 			if (useBackend) {
+				LOG.info("weird. USEBACKEND");
 				rsp = backend.execute(request);
 			} else {
+				LOG.info("expected. don't USEBACKEND");
 				rsp = client.execute(getHttpHost(), request, context);
 			}
 			LOG.trace("{} {} {} {}", new Object[] { request.getMethod(), request.getURI(),
